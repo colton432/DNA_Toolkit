@@ -1,47 +1,49 @@
-import argparse
-# argparse is a python tool for handling information someone gives the program when they start it from a terminal known as command-line arguments
-# its just a library we need to import to use specific functions, examples later
+import tkinter as tk
+from tkinter import filedialog
 
 from .analysis import find_motif, gc_percentage
 from .fasta import read_fasta
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Analyze DNA sequences in a FASTA file."
-    )
-    parser.add_argument("fasta_file", help="Path to the FASTA file to analyze.")
-    parser.add_argument(
-        "--motif",
-        help="Optional DNA motif to search for, such as ATG.",
+    root = tk.Tk()
+    root.withdraw()
+
+    fasta_path = filedialog.askopenfilename(
+        title="Choose a FASTA file",
+        filetypes=[
+            ("FASTA files", "*.fasta *.fa *.fna"),
+            ("All files", "*.*"),
+        ],
     )
 
-    args = parser.parse_args()
+    root.destroy()
+
+    if not fasta_path:
+        print("No file selected. Exiting.")
+        return
+
+    motif = input("Enter a motif to search for, or press Enter to skip: ").strip()
 
     try:
-        records = read_fasta(args.fasta_file)
+        records = read_fasta(fasta_path)
+
+        for header, sequence in records:
+            print(f"\n>{header}")
+            print(f"Length: {len(sequence)}")
+
+            gc = gc_percentage(sequence)
+            if gc is None:
+                print("GC content: N/A (no known bases)")
+            else:
+                print(f"GC content: {gc:.2f}%")
+
+            if motif:
+                positions = find_motif(sequence, motif)
+                print(f"Motif {motif.upper()} positions: {positions}")
+
     except (OSError, ValueError) as error:
-        parser.error(str(error))
-
-    for header, sequence in records:
-        print(f">{header}")
-        print(f"Length: {len(sequence)}")
-
-        gc = gc_percentage(sequence)
-        if gc is None:
-            print("GC content: N/A (no known bases)")
-        else:
-            print(f"GC content: {gc:.2f}%")
-
-        if args.motif is not None:
-            try:
-                positions = find_motif(sequence, args.motif)
-            except ValueError as error:
-                parser.error(str(error))
-
-            print(f"Motif {args.motif.upper()} positions: {positions}")
-
-        print()
+        print(f"Error: {error}")
 
 
 if __name__ == "__main__":
